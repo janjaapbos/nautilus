@@ -1,6 +1,68 @@
 """ eventlet based AMQP handling
 using amqpy (easy_install3 amqpy),
 see https://github.com/veegee/amqpy
+
+
+This is not in working state yet. Just took stuff from earlier
+testing with eventlet / amqpy.
+
+The idea is that for incoming HTTP requests that need to be forwarded
+through AMQP something will be done like this:
+
+
+from nautilus.network.eventlet_amqpy import AmqpyRequest
+
+def parse_env(env):
+    r = {}
+    for k in [
+        'REQUEST_METHOD', 'PATH_INFO', 'SERVER_PROTOCOL', 'HTTP_USER_AGENT',
+        'REMOTE_PORT', 'SERVER_NAME', 'REMOTE_ADDR', 'SERVER_PORT', 'HTTP_HOST',
+        'HTTP_ACCEPT', 'RAW_PATH_INFO', 'GATEWAY_INTERFACE',
+        'CONTENT_TYPE', "QUERY_STRING",
+    ]:
+        r[k] = env.get(k)
+    return r
+
+def hello_world(environ, start_response):
+    env = parse_env(environ)
+    path = env['PATH_INFO']
+    if not path.startswith("/route/"):
+        start_response('404 Not Found', [('Content-Type', 'text/plain')])
+        return ['Not Found. Try /route/test.server/my_resource/\r\n']
+    route = path[7:]
+    routing_key = route.split("/")[0]
+
+    query_args = None
+    if environ['REQUEST_METHOD'] == 'POST':
+        post_env = environ.copy()
+    if environ['REQUEST_METHOD'] == 'POST':
+        post_env = environ.copy()
+        post_env['QUERY_STRING'] = ''
+        post = cgi.FieldStorage(
+            fp=environ['wsgi.input'],
+            environ=post_env,
+            keep_blank_values=True
+        )
+        query_args = {}
+        for key in post.keys():
+            query_args[key] = post[key].value
+
+    evt = eventlet.event.Event()
+    AmqpyRequest(routing_key=routing_key, route=route, evt=evt, env=env,
+              query_args=query_args).send()
+    timeout = eventlet.Timeout(300)
+    try:
+        msg = evt.wait()
+    except eventlet.Timeout as t:
+        if t is not timeout:
+            raise "Not my timeout"
+        start_response('500 Error', [('Content-Type', 'text/plain')])
+        return ['Request Timeout!\r\n']
+    timeout.cancel()
+    start_response('200 OK', [('Content-Type', 'application/json')])
+    return [msg.body + "\r\n"]
+
+
 """
 
 import eventlet
