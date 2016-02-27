@@ -1,4 +1,7 @@
 # external imports
+from eventlet import wsgi
+import eventlet
+
 import threading
 import consul
 from nautilus.network import registry
@@ -126,7 +129,8 @@ class Service:
             actionThread.start()
 
         # run the service at the designated port
-        self.app.run(host=self.app.config['HOST'], port = self.app.config['PORT'])
+        #self.app.run(host=self.app.config['HOST'], port = self.app.config['PORT'])
+        wsgi.server(eventlet.listen((self.app.config['HOST'], self.app.config['PORT'])), self.app)
 
 
     def stop(self):
