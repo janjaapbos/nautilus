@@ -1,5 +1,7 @@
 # external imports
 from graphene import List
+from graphene.core.types.scalars import Int, String
+
 from sqlalchemy.inspection import inspect
 # local imports
 from nautilus.api import convert_sqlalchemy_type
@@ -31,11 +33,17 @@ def args_for_model(Model):
         # add the list member filter
         fullArgs[arg + '_in'] = List(type)
 
+    for k in ['first', 'last', 'offset']:
+        fullArgs[k] = Int()
+    for k in ['order_by']:
+        fullArgs[k] = String()
     # return the complete dictionary of arguments
     return fullArgs
 
 
 def filter_model(Model, args):
+
+    first = last = offset = order_by = None
 
     # convert any args referencing pk to the actual field
     keys = [key.replace('pk', inspect(Model).primary_key[0].name) for key in args.keys()]
@@ -44,13 +52,38 @@ def filter_model(Model, args):
     models = Model.query
     # for each argument
     for arg, value in zip(keys, args.values()):
+        if arg == "first":
+            first = value
+        elif arg == "last":
+            last = value
+        elif arg == "offset":
+            offset = value
+        elif arg == "order_by":
+            order_by = value
         # if the filter is for a group of values
-        if isinstance(value, list):
+        elif isinstance(value, list):
             # filter the query
             models = models.filter(getattr(Model, arg[:-3]).in_(value))
         else:
             # filter the argument
             models = models.filter(getattr(Model, arg) == value)
+
+    if first:
+        if order_by is None:
+            order_by = inspect(Model).primary_key[0].name
+        order_by = getattr(Model, order_by)
+        models = models.order_by(order_by)
+        if offset:
+            models = models.offset(offset)
+        return models.limit(first)
+    elif last:
+        if order_by is None:
+            order_by = inspect(Model).primary_key[0].name
+        order_by = getattr(Model, order_by).desc()
+        models = models.order_by(order_by)
+        if offset:
+            models = models.offset(offset)
+        return models.limit(last)
 
     # return the filtered list
     return models.all()

@@ -49,7 +49,8 @@ class ServiceObjectTypeMeta(type(Node)):
                 for key, value in args_for_model(service.model).items():
                     # ignore dynamically created fields
                     # TODO: make this cleaner
-                    if 'pk' not in key and 'in' not in key and 'id' not in key:
+                    if key not in ['pk', 'id', 'first', 'last', 'offset', 'order_by'] \
+                            and not key.endswith("_in"):
                         # add an attribute to the cls that matches the argument
                         attributes[key] = value
 
