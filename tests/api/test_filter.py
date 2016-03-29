@@ -103,3 +103,83 @@ class TestUtil(unittest.TestCase):
         assert retrieved_names == {record1.first_name, record2.first_name}, (
             "The wrong record was retrieved."
         )
+
+    def gen_test_data(self):
+        # some test records
+        i = 1
+        while i < 10:
+            record = self.model(first_name='foo%s' % (i), last_name='bar')
+            record.save()
+            record = self.model(first_name='bar%s' % (i), last_name='foo')
+            record.save()
+            i +=1
+
+    def test_can_handle_first(self):
+        self.gen_test_data()
+        # the argument to filter for
+        filter_args = dict(first=2, offset=0)
+        # filter the models
+        records_filtered = filter_model(self.model, filter_args)
+
+        # figure out the names of the records we retrieved
+        retrieved_names = [record.first_name for record in records_filtered]
+        expected = ['foo1', 'bar1']
+        assert retrieved_names == expected, (
+            "Wrong first records retrieved: %(retrieved_names)s instead of %(expected)s" % locals()
+        )
+
+    def test_can_handle_last(self):
+        self.gen_test_data()
+        # the argument to filter for
+        filter_args = dict(last=2, offset=0)
+        # filter the models
+        records_filtered = filter_model(self.model, filter_args)
+
+        # figure out the names of the records we retrieved
+        retrieved_names = [record.first_name for record in records_filtered]
+        expected = ['bar9', 'foo9']
+        assert retrieved_names == expected, (
+            "Wrong last records retrieved: %(retrieved_names)s instead of %(expected)s" % locals()
+        )
+
+    def test_can_handle_last_offset(self):
+        self.gen_test_data()
+        # the argument to filter for
+        filter_args = dict(last=2, offset=2)
+        # filter the models
+        records_filtered = filter_model(self.model, filter_args)
+
+        # figure out the names of the records we retrieved
+        retrieved_names = [record.first_name for record in records_filtered]
+        expected = ['bar8', 'foo8']
+        assert retrieved_names == expected, (
+            "Wrong last offset records retrieved: %(retrieved_names)s instead of %(expected)s" % locals()
+        )
+
+    def test_can_handle_first_offset(self):
+        self.gen_test_data()
+        # the argument to filter for
+        filter_args = dict(first=4, offset=2)
+        # filter the models
+        records_filtered = filter_model(self.model, filter_args)
+
+        # figure out the names of the records we retrieved
+        retrieved_names = [record.first_name for record in records_filtered]
+        expected = ['foo2', 'bar2', 'foo3', 'bar3']
+        assert retrieved_names == expected, (
+            "Wrong first offset records retrieved: %(retrieved_names)s instead of %(expected)s" % locals()
+        )
+
+    def test_can_handle_first_offset_order_by(self):
+        self.gen_test_data()
+        # the argument to filter for
+        filter_args = dict(first=4, offset=2, order_by="last_name, -first_name")
+        # filter the models
+        records_filtered = filter_model(self.model, filter_args)
+
+        # figure out the names of the records we retrieved
+        retrieved_names = [record.first_name for record in records_filtered]
+        expected = ['foo7', 'foo6', 'foo5', 'foo4']
+        assert retrieved_names == expected, (
+            "Wrong first offset records retrieved: %(retrieved_names)s instead of %(expected)s" % locals()
+        )
