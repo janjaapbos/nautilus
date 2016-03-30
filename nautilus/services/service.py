@@ -7,6 +7,7 @@ import tornado.web
 from nautilus.network.amqp.consumers.actions import ActionHandler
 from nautilus.api.endpoints import static_dir as api_endpoint_static
 import nautilus.network.registry as registry
+from nautilus.config import Config
 from nautilus.api.endpoints import (
     GraphiQLRequestHandler,
     GraphQLRequestHandler
@@ -27,9 +28,6 @@ class Service:
             auth (optional, bool, default = True): Whether or not the service should add
                 authentication requirements.
 
-            auto_register (optional, bool): Whether or not the service should
-                register itself when ran
-
             configObject (optional, class): A python class to use for configuring the
                 service.
 
@@ -47,17 +45,17 @@ class Service:
 
                 from nautilus import Service
                 from nautilus.api import create_model_schema
-                from nautilus.network import CRUDHandler
-                from nautilus.models import BaseModel
+                from nautilus.network import crud_handler
+                import nautilus.models as models
 
-                class Model(BaseModel):
-                    name = Column(Text)
+                class Model(models.BaseModel):
+                    name = models.fields.CharField()
 
 
                 api_schema = create_model_schema(Model)
 
 
-                action_handler = CRUDHandler(Model)
+                action_handler = crud_handler(Model)
 
 
                 service = Service(
@@ -72,8 +70,7 @@ class Service:
             name,
             schema=None,
             action_handler=None,
-            configObject=None,
-            auto_register=True,
+            config=None,
             auth=True,
     ):
 
@@ -87,21 +84,19 @@ class Service:
         # self.app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
 
         # if there is a configObject
-        # if configObject:
-        #     # apply the config object to the flask app
-        #     self.app.config.from_object(configObject)
+        if config:
+            # apply the config object to the flask app
+            self.app.config = Config(config)
 
         # base the service on a flask app
-        self.app = self.tornado_app(schema)
+        self.app = self.tornado_app
         # setup various functionalities
         self.init_action_handler(action_handler)
-        self.init_keep_alive()
-        # self.setup_db()
-        # self.setup_admin()
         # self.setup_auth()
 
 
-    def tornado_app(self, graphiql=True):
+    @property
+    def tornado_app(self):
         # create a tornado web application
         app = tornado.web.Application(self.request_handlers)
         # attach the ioloop to the application
@@ -125,8 +120,17 @@ class Service:
 
 
     def run(self, port=8000, **kwargs):
+        """
+            This function starts the service's network intefaces.
+
+            Args:
+                port (int): The port for the http server.
+        """
         print("Running service on http://localhost:%i. " % port + \
                                             "Press Ctrl+C to terminate.")
+        # create the keep alive timer
+        self.init_keep_alive()
+
         # start the keep alive timer
         self.keep_alive.start()
         # assign the port to the app instance
@@ -148,10 +152,15 @@ class Service:
 
 
     def stop(self):
-        # stop the keep_alive timer
-        self.keep_alive.stop()
-        # remove the service entry from the registry
-        registry.deregister_service(self)
+        """
+            This function stops the service's various network interfaces.
+        """
+        # if there is a keep alive timer
+        if self.keep_alive:
+            # stop the keep_alive timer
+            self.keep_alive.stop()
+            # remove the service entry from the registry
+            registry.deregister_service(self)
 
         # stop the ioloop
         self.app.ioloop.stop()
@@ -172,11 +181,50 @@ class Service:
         ]
 
 
-    # def setup_db(self):
-    #     # import the nautilus db configuration
-    #     from nautilus.db import db
-    #     # initialize the service app
-    #     db.init_app(self.app)
+    def add_http_endpoint(self, url, request_handler, config=None, host=".*$"):
+        """
+            This method provides a programatic way of added invidual routes
+            to the http server.
+
+            Args:
+                url (str): the url to be handled by the request_handler
+                request_handler (tornado.web.RequestHandler): The request handler
+                config (dict): A configuration dictionary to pass to the handler
+        """
+        self.app.add_handlers(host, [(url, request_handler, config)])
+
+
+    def route(self, route, config=None):
+        """
+            This method provides a decorator for adding endpoints to the
+            http server.
+
+            Args:
+                route (str): The url to be handled by the RequestHandled
+                config (dict): Configuration for the request handler
+
+            Example:
+
+                .. code-block:: python
+
+                    import nautilus
+                    from nauilus.network.http import RequestHandler
+
+                    service = nautilus.Service(...)
+
+                    @service.route('/')
+                    class HelloWorld(RequestHandler):
+                        def get(self):
+                            return self.finish('hello world')
+        """
+        def decorator(cls, **kwds):
+            # add the endpoint at the given route
+            self.add_http_endpoint(url = route, request_handler=cls, config=kwds)
+            # return the class undecorated
+            return cls
+
+        # return the decorator
+        return decorator
 
 
     # def setup_auth(self):
@@ -184,8 +232,3 @@ class Service:
     #     if self.auth:
     #         from nautilus.auth import init_service
     #         init_service(self)
-
-
-    # def setup_admin(self):
-    #     from nautilus.admin import init_service
-    #     init_service(self)
