@@ -65,6 +65,7 @@ class Service:
             action_handler=None,
             config=None,
             auth=True,
+            init_service=False
     ):
 
         self.name = name
@@ -72,17 +73,21 @@ class Service:
         self.action_consumer = None
         self.keep_alive = None
         self._schema = schema
+        self.action_handler = action_handler
 
         # if we were given configuration for this service
         if config:
             # wrap the given configuration in the nautilus wrapper
             self.config = Config(config)
+        if init_service:
+            self.init_service()
 
+    def init_service(self):
         # base the service on a tornado app
         self.app = self.tornado_app
 
         # setup various functionalities
-        self.init_action_handler(action_handler)
+        self.init_action_handler()
         # self.setup_auth()
 
 
@@ -91,6 +96,7 @@ class Service:
         # create a tornado web application
         app = tornado.web.Application(
             self.request_handlers,
+            debug=self.config.get("debug")
         )
         # attach the ioloop to the application
         app.ioloop = tornado.ioloop.IOLoop.instance()
@@ -98,11 +104,11 @@ class Service:
         return app
 
 
-    def init_action_handler(self, action_handler):
+    def init_action_handler(self):
         # if the service was provided an action handler
-        if action_handler:
+        if self.action_handler:
             # create a wrapper for it
-            self.action_consumer = ActionHandler(callback=action_handler)
+            self.action_consumer = ActionHandler(callback=self.action_handler)
             # add it to the ioloop
             self.app.ioloop.add_callback(self.action_consumer.run)
 
@@ -114,12 +120,13 @@ class Service:
 
     def run(self, host="localhost", port=8000, **kwargs):
         """
-            This function starts the service's network intefaces.
+            This function starts the service's network interfaces.
 
             Args:
                 port (int): The port for the http server.
         """
-        print("Running service on http://localhost:%i. " % port + \
+        _host = host or "0.0.0.0"
+        print("Running service on http://%s:%i. " % (_host, port) + \
                                             "Press Ctrl+C to terminate.")
         # create the keep alive timer
         self.init_keep_alive()

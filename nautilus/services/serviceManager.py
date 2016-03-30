@@ -23,7 +23,10 @@ class ServiceManager:
         @group.command(help="Run the service.")
         @click.option('--port', default=8000, help="The port for the service http server.")
         @click.option('--host', default='127.0.0.1', help="The host for the http server.")
-        def runserver(port, host):
+        @click.option('--debug/--no-debug', default=False, help="Debug mode")
+        def runserver(port, host, debug):
+            self.service.config.debug = debug
+            self.service.init_service()
             # make sure we clean up the service later on
             self._running_service = True
             # run the service
@@ -35,6 +38,7 @@ class ServiceManager:
         @group.command(help="Make sure the models have been written to the db.")
         def syncdb():
             """ Create the database entries. """
+            self.service.init_service()
             # get the models managed by the service
             models = getattr(self.service, 'get_models', lambda: [])()
 
