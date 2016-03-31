@@ -47,10 +47,11 @@ class ServiceManager:
 
                 # notify the user
                 print("Successfully created necessary database tables.")
-
+                
             # otherwise there are no tables to create
             else:
                 print("There are no models to add.")
+
 
         # save the command group to the manager
         self.group = group
