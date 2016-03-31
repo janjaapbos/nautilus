@@ -51,17 +51,10 @@ class Service:
                 class Model(models.BaseModel):
                     name = models.fields.CharField()
 
-
-                api_schema = create_model_schema(Model)
-
-
-                action_handler = crud_handler(Model)
-
-
                 service = Service(
                     name = 'My Awesome Service',
-                    schema = api_schema,
-                    action_handler = action_handler
+                    schema = create_model_schema(Model),
+                    action_handler = crud_handler(Model)
                 )
     """
 
@@ -80,16 +73,14 @@ class Service:
         self.keep_alive = None
         self._schema = schema
 
-        # apply any necessary flask app config
-        # self.app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
-
-        # if there is a configObject
+        # if we were given configuration for this service
         if config:
-            # apply the config object to the flask app
-            self.app.config = Config(config)
+            # wrap the given configuration in the nautilus wrapper
+            self.config = Config(config)
 
-        # base the service on a flask app
+        # base the service on a tornado app
         self.app = self.tornado_app
+
         # setup various functionalities
         self.init_action_handler(action_handler)
         # self.setup_auth()
@@ -98,7 +89,9 @@ class Service:
     @property
     def tornado_app(self):
         # create a tornado web application
-        app = tornado.web.Application(self.request_handlers)
+        app = tornado.web.Application(
+            self.request_handlers,
+        )
         # attach the ioloop to the application
         app.ioloop = tornado.ioloop.IOLoop.instance()
         # return the app instance
@@ -119,7 +112,7 @@ class Service:
         self.keep_alive = registry.keep_alive(self)
 
 
-    def run(self, port=8000, **kwargs):
+    def run(self, host="localhost", port=8000, **kwargs):
         """
             This function starts the service's network intefaces.
 
@@ -134,7 +127,7 @@ class Service:
         # start the keep alive timer
         self.keep_alive.start()
         # assign the port to the app instance
-        self.app.listen(port)
+        self.app.listen(port, address=host)
         # start the ioloop
         try:
             self.app.ioloop.start()

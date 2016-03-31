@@ -31,6 +31,7 @@ class TestUtil(unittest.TestCase):
         # remove the test table
         nautilus.db.drop_table(self.model)
 
+
     def gen_testdata(self):
         # some test records
         i = 1
@@ -104,6 +105,7 @@ class TestUtil(unittest.TestCase):
             "Got %(retrieved_names)s instead of %(expected)s" % locals()
         )
 
+
     def test_can_handle_first(self):
         # the argument to filter for
         filter_args = dict(first=2, offset=0)
@@ -116,6 +118,7 @@ class TestUtil(unittest.TestCase):
         assert retrieved_names == expected, (
             "Got %(retrieved_names)s instead of %(expected)s" % locals()
         )
+
 
     def test_can_handle_last(self):
         # the argument to filter for
@@ -130,6 +133,7 @@ class TestUtil(unittest.TestCase):
             "Got %(retrieved_names)s instead of %(expected)s" % locals()
         )
 
+
     def test_can_handle_last_offset(self):
         # the argument to filter for
         filter_args = dict(last=2, offset=2)
@@ -143,6 +147,7 @@ class TestUtil(unittest.TestCase):
             "Got %(retrieved_names)s instead of %(expected)s" % locals()
         )
 
+
     def test_can_handle_first_offset(self):
         # the argument to filter for
         filter_args = dict(first=4, offset=2)
@@ -155,6 +160,7 @@ class TestUtil(unittest.TestCase):
         assert retrieved_names == expected, (
             "Got %(retrieved_names)s instead of %(expected)s" % locals()
         )
+
 
     def test_can_handle_first_offset_order_by(self):
         # the argument to filter for

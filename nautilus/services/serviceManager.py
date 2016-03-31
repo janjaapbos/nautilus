@@ -42,18 +42,15 @@ class ServiceManager:
             if models:
                 # for each model that we are managing
                 for model in models:
-                    # if the table is not present in the underlying database
-                    if not nautilus.db.table_exists(model):
-                        # create the table in the database
-                        nautilus.db.create_table(model)
+                    # create the table in the database
+                    model.create_table(True)
 
                 # notify the user
                 print("Successfully created necessary database tables.")
-                
+
             # otherwise there are no tables to create
             else:
                 print("There are no models to add.")
-
 
         # save the command group to the manager
         self.group = group
